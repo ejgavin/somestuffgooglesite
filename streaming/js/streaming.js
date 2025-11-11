@@ -96,7 +96,7 @@ function displayResults(results) {
         showTVModal(item.id, item.name || item.title);
       } else {
         openIframe(
-          `${window.location.origin}/misc/customsource/index3.html?id=${item.id}&type=movie`,
+          `https://wmath.netlify.app/misc/customsource/index3.html?id=${item.id}&type=movie`,
           item.title || item.name
         );
       }
