@@ -100,7 +100,10 @@
   </div>
 
   <script>
-    const API_BASE = 'https://somestuffserver.koyeb.app/api/chat';
+    const API_BASE = 'https://chatapp2.koyeb.app/api/chat';
+    const POLL_INTERVAL = 3000; // Poll every 3 seconds instead of constant long polling
+    const TYPING_DEBOUNCE = 1000; // Only send typing updates every 1 second
+    const ACTIVITY_UPDATE_INTERVAL = 60000; // Update activity every 60 seconds
     
     // Global state
     const state = {
@@ -109,7 +112,9 @@
       unreadCount: 0,
       lastUpdate: 0,
       isPolling: false,
-      displayedMessageIds: new Set()
+      displayedMessageIds: new Set(),
+      lastTypingUpdate: 0,
+      lastActivityUpdate: 0
     };
 
     // UI Elements
@@ -162,8 +167,8 @@
       return element.scrollHeight - element.scrollTop - element.clientHeight < threshold;
     }
 
-    // API functions
-    async function apiRequest(action, data = null, method = 'GET') {
+    // API functions with retry logic
+    async function apiRequest(action, data = null, method = 'GET', retries = 2) {
       const url = `${API_BASE}?action=${action}`;
       const options = {
         method: method,
@@ -176,22 +181,26 @@
         options.body = JSON.stringify(data);
       }
 
-      try {
-        const response = await fetch(url, options);
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.error || 'API request failed');
+      for (let i = 0; i <= retries; i++) {
+        try {
+          const response = await fetch(url, options);
+          if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'API request failed');
+          }
+          return await response.json();
+        } catch (error) {
+          if (i === retries) {
+            console.error('API Error:', error);
+            throw error;
+          }
+          await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
         }
-        return await response.json();
-      } catch (error) {
-        console.error('API Error:', error);
-        throw error;
       }
     }
 
     // Display functions
     function displayMessage(msg) {
-      // Skip if already displayed
       if (msg.id && state.displayedMessageIds.has(msg.id)) {
         return;
       }
@@ -283,36 +292,33 @@
       }
     }
 
-    // Long polling for updates
+    // Polling with fixed interval
     async function startPolling() {
       if (state.isPolling) return;
       state.isPolling = true;
 
-      while (state.isPolling) {
+      async function poll() {
+        if (!state.isPolling) return;
+
         try {
-          const data = await apiRequest('poll', null, 'GET');
+          const data = await apiRequest('poll', null, 'GET', 1);
           
-          // Update messages
           if (data.messages) {
             data.messages.forEach(msg => displayMessage(msg));
           }
 
-          // Update users list
           if (data.users) {
             updateUsersList(data.users);
           }
 
-          // Update typing indicator
           if (data.typingUsers) {
             updateTypingIndicator(data.typingUsers);
           }
 
-          // Update pinned message
           if (data.pinnedMessage !== undefined) {
             updatePinnedMessage(data.pinnedMessage);
           }
 
-          // Clear history if needed
           if (data.clearHistory) {
             messages.innerHTML = '';
             state.displayedMessageIds.clear();
@@ -322,9 +328,16 @@
 
         } catch (error) {
           console.error('Polling error:', error);
-          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+
+        // Schedule next poll
+        if (state.isPolling) {
+          setTimeout(poll, POLL_INTERVAL);
         }
       }
+
+      // Start first poll
+      poll();
     }
 
     // Chat entry
@@ -349,7 +362,6 @@
           userId
         }, 'POST');
 
-        // Check if Eli needs password
         if (result.needsPassword) {
           const password = prompt('Enter password for Eli:');
           if (!password) return;
@@ -382,7 +394,6 @@
           };
         }
 
-        // Load initial state
         const initData = await apiRequest('init', null, 'GET');
         initData.messages.forEach(msg => displayMessage(msg));
         updateUsersList(initData.users || []);
@@ -392,10 +403,7 @@
         chatUI.classList.remove('hidden');
         messages.scrollTop = messages.scrollHeight;
 
-        // Start polling
         startPolling();
-
-        // Start idle detection
         startIdleDetection();
 
       } catch (error) {
@@ -431,13 +439,6 @@
           state.displayedMessageIds.clear();
         }
 
-        // Update typing status
-        await apiRequest('typing', {
-          userId: state.currentUser.userId,
-          username: state.currentUser.username,
-          isTyping: false
-        }, 'POST');
-
         input.value = '';
 
       } catch (error) {
@@ -453,32 +454,43 @@
       }
     });
 
-    // Typing indicator
+    // Typing indicator with debounce
     let typingTimeout;
+    let isTyping = false;
+    
     input.addEventListener('input', async () => {
       if (!state.currentUser) return;
 
+      const now = Date.now();
+      
       if (input.value.length > 0) {
-        await apiRequest('typing', {
-          userId: state.currentUser.userId,
-          username: state.currentUser.username,
-          isTyping: true
-        }, 'POST');
+        // Only send typing update if enough time has passed
+        if (!isTyping || now - state.lastTypingUpdate > TYPING_DEBOUNCE) {
+          isTyping = true;
+          state.lastTypingUpdate = now;
+          await apiRequest('typing', {
+            userId: state.currentUser.userId,
+            username: state.currentUser.username,
+            isTyping: true
+          }, 'POST').catch(() => {});
+        }
 
         clearTimeout(typingTimeout);
         typingTimeout = setTimeout(async () => {
+          isTyping = false;
           await apiRequest('typing', {
             userId: state.currentUser.userId,
             username: state.currentUser.username,
             isTyping: false
-          }, 'POST');
+          }, 'POST').catch(() => {});
         }, 2000);
-      } else {
+      } else if (isTyping) {
+        isTyping = false;
         await apiRequest('typing', {
           userId: state.currentUser.userId,
           username: state.currentUser.username,
           isTyping: false
-        }, 'POST');
+        }, 'POST').catch(() => {});
       }
     });
 
@@ -538,7 +550,7 @@
       }
     });
 
-    // Idle detection
+    // Idle detection with throttled updates
     let idleTimeout;
     const IDLE_LIMIT = 5 * 60 * 1000;
 
@@ -554,10 +566,15 @@
 
       clearTimeout(idleTimeout);
       
-      await apiRequest('update-activity', {
-        userId: state.currentUser.userId,
-        isIdle: false
-      }, 'POST').catch(() => {});
+      const now = Date.now();
+      // Only send activity update if enough time has passed
+      if (now - state.lastActivityUpdate > ACTIVITY_UPDATE_INTERVAL) {
+        state.lastActivityUpdate = now;
+        await apiRequest('update-activity', {
+          userId: state.currentUser.userId,
+          isIdle: false
+        }, 'POST').catch(() => {});
+      }
 
       idleTimeout = setTimeout(async () => {
         await apiRequest('update-activity', {
