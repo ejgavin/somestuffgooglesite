@@ -159,7 +159,7 @@ async function loadEpisodes(tvId, seasonNumber, activeBtn) {
         <div style="font-size: 0.85rem; opacity: 0.7; margin-top: 0.25rem;">${ep.name}</div>
       `;
       btn.addEventListener("click", () => {
-        const url = `${window.location.origin}/misc/customsource/index3.html?id=${tvId}&type=tv&season=${seasonNumber}&episode=${ep.episode_number}`;
+        const url = `https://wmath.netlify.app/misc/customsource/index3.html?id=${tvId}&type=tv&season=${seasonNumber}&episode=${ep.episode_number}`;
         openIframe(url, `${currentTitle} - S${seasonNumber}E${ep.episode_number}`);
         closeTVModal();
       });
