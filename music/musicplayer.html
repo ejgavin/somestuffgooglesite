@@ -707,7 +707,7 @@
             searchBtn.textContent = 'Loading...';
             searchBtn.disabled = true;
 
-            var musicUrl = 'https://somestuffserver.koyeb.app/api/deezermusic?q=' + encodeURIComponent(song.title + ' ' + song.artist.name) + '&raw=1';
+            var musicUrl = 'https://somestuffserver.koyeb.app/api/qobuzmusic?q=' + encodeURIComponent(song.title + ' ' + song.artist.name) + '&raw=1';
             var lyricsUrl = 'https://lrclib.net/api/get?artist_name=' + encodeURIComponent(song.artist.name) + '&track_name=' + encodeURIComponent(song.title);
 
             Promise.all([fetch(musicUrl), fetch(lyricsUrl)])
