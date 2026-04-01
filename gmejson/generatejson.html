@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Game JSON Generator</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      background: #0f172a;
+      color: #e5e7eb;
+      padding: 20px;
+      max-width: 900px;
+      margin: auto;
+    }
+    label {
+      display: block;
+      margin-top: 15px;
+      font-weight: 600;
+    }
+    input, textarea, button {
+      width: 100%;
+      margin-top: 5px;
+      padding: 10px;
+      border-radius: 6px;
+      border: none;
+      font-size: 14px;
+    }
+    input, textarea {
+      background: #020617;
+      color: #e5e7eb;
+    }
+    textarea {
+      min-height: 160px;
+      resize: vertical;
+    }
+    button {
+      background: #38bdf8;
+      color: #020617;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 20px;
+    }
+    pre {
+      background: #020617;
+      padding: 15px;
+      border-radius: 6px;
+      margin-top: 20px;
+      overflow-x: auto;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>🎮 Game JSON Generator</h1>
+
+  <label>Domain</label>
+  <input id="domain" value="https://wsomestuff.netlify.app">
+
+  <label>Frame Path</label>
+  <input id="path" value="/frame.html">
+
+  <label>Folder Names (one per line)</label>
+  <textarea
+    id="folders"
+    placeholder="retro-bowl&#10;slope&#10;run-3"
+  ></textarea>
+
+  <button onclick="generate()">Generate JSON</button>
+
+  <pre id="output"></pre>
+
+  <script>
+    function generate() {
+      const domain = document.getElementById("domain").value.replace(/\/$/, "");
+      const pathInput = document.getElementById("path").value.trim();
+      const path = pathInput.startsWith("/") ? pathInput : "/" + pathInput;
+
+      const folders = document
+        .getElementById("folders")
+        .value
+        .split("\n")
+        .map(f => f.trim())
+        .filter(Boolean);
+
+      const games = folders.map((folder, index) => ({
+        id: index + 1,
+        folder,
+        url: `${domain}/${folder}${path}`
+      }));
+
+      const json = {
+        domain,
+        path,
+        games
+      };
+
+      document.getElementById("output").textContent =
+        JSON.stringify(json, null, 2);
+    }
+  </script>
+
+</body>
+</html>

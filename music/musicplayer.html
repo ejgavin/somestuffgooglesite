@@ -707,7 +707,7 @@
             searchBtn.textContent = 'Loading...';
             searchBtn.disabled = true;
 
-            var musicUrl = 'https://somestuffserver.koyeb.app/api/qobuzmusic?q=' + encodeURIComponent(song.title + ' ' + song.artist.name) + '&raw=1';
+            var musicUrl = 'https://somestuffserver.koyeb.app/api/tidalmusic?q=' + encodeURIComponent(song.title + ' ' + song.artist.name) + '&raw=1';
             var lyricsUrl = 'https://lrclib.net/api/get?artist_name=' + encodeURIComponent(song.artist.name) + '&track_name=' + encodeURIComponent(song.title);
 
             Promise.all([fetch(musicUrl), fetch(lyricsUrl)])
@@ -726,8 +726,21 @@
                     lyrics = parseLyrics(lyricsData.syncedLyrics);
                     displayLyrics();
 
-                    audioPlayer.src = musicData.mp3;
-                    audioPlayer.play();
+                    // Check if the URL is a DASH MPD
+                    if (musicData.mp3 && musicData.mp3.endsWith('.mpd')) {
+                        if (window.dashPlayer) {
+                            window.dashPlayer.reset();
+                        }
+                        window.dashPlayer = dashjs.MediaPlayer().create();
+                        window.dashPlayer.initialize(audioPlayer, musicData.mp3, true);
+                    } else {
+                        if (window.dashPlayer) {
+                            window.dashPlayer.reset();
+                            window.dashPlayer = null;
+                        }
+                        audioPlayer.src = musicData.mp3;
+                        audioPlayer.play();
+                    }
                     updatePlayButton(true);
 
                     resultsSection.classList.remove('active');
@@ -859,5 +872,7 @@
             return minutes + ':' + (seconds < 10 ? '0' : '') + seconds;
         }
     </script>
+    <script src="https://cdn.dashjs.org/latest/dash.all.min.js"></script>
 </body>
 </html>
+
