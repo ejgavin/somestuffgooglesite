@@ -622,7 +622,7 @@
         </div>
     </div>
 
-    <audio id="audioPlayer"></audio>
+    <div id="audioPlayerContainer"></div>
 
     <script>
         var searchInput = document.getElementById('searchInput');
@@ -630,7 +630,6 @@
         var resultsSection = document.getElementById('resultsSection');
         var resultsGrid = document.getElementById('resultsGrid');
         var playerSection = document.getElementById('playerSection');
-        var audioPlayer = document.getElementById('audioPlayer');
         var playBtn = document.getElementById('playBtn');
         var playIcon = document.getElementById('playIcon');
         var pauseIcon = document.getElementById('pauseIcon');
@@ -644,6 +643,7 @@
         var artistName = document.getElementById('artistName');
         var albumName = document.getElementById('albumName');
         var lyricsContainer = document.getElementById('lyricsContainer');
+        var audioPlayer = null; // will be dynamically created
 
         var currentSong = null;
         var lyrics = [];
@@ -726,23 +726,40 @@
                     lyrics = parseLyrics(lyricsData.syncedLyrics);
                     displayLyrics();
 
-                    // Handle DASH MPD directly with dash.js
-                    if (musicData.mp3 && musicData.mp3.endsWith('.mpd')) {
+                    // Remove old audio/video player if exists
+                    var container = document.getElementById('audioPlayerContainer');
+                    container.innerHTML = ''; // clear previous player
+                    var isDash = musicData.mp3 && musicData.mp3.endsWith('.mpd');
+
+                    if (isDash) {
+                        var videoEl = document.createElement('video');
+                        videoEl.id = 'dashPlayer';
+                        videoEl.controls = true;
+                        videoEl.autoplay = true;
+                        videoEl.style.width = '100%';
+                        container.appendChild(videoEl);
+
                         if (window.dashPlayer) {
                             window.dashPlayer.reset();
                             window.dashPlayer = null;
                         }
                         window.dashPlayer = dashjs.MediaPlayer().create();
-                        window.dashPlayer.initialize(audioPlayer, musicData.mp3, true);
+                        window.dashPlayer.initialize(videoEl, musicData.mp3, true);
+                        audioPlayer = videoEl;
                     } else {
-                        // Normal MP3/MP4 playback
-                        if (window.dashPlayer) {
-                            window.dashPlayer.reset();
-                            window.dashPlayer = null;
-                        }
-                        audioPlayer.src = musicData.mp3;
-                        audioPlayer.play();
+                        // normal audio playback
+                        var audioEl = document.createElement('audio');
+                        audioEl.id = 'audioPlayer';
+                        audioEl.controls = true;
+                        audioEl.autoplay = true;
+                        audioEl.src = musicData.mp3;
+                        container.appendChild(audioEl);
+                        audioEl.play();
+                        audioPlayer = audioEl;
                     }
+
+                    // Attach event listeners to the new audioPlayer
+                    setupPlayerEvents();
                     updatePlayButton(true);
 
                     resultsSection.classList.remove('active');
@@ -755,6 +772,33 @@
                     searchBtn.textContent = 'Search';
                     searchBtn.disabled = false;
                 });
+        }
+
+        function setupPlayerEvents() {
+            if (!audioPlayer) return;
+
+            // Remove previous listeners if any (by recreating element, listeners are gone)
+            audioPlayer.addEventListener('timeupdate', function() {
+                var currentTime = audioPlayer.currentTime;
+                var duration = audioPlayer.duration;
+
+                var progress = (currentTime / duration) * 100 || 0;
+                progressFill.style.width = progress + '%';
+
+                currentTimeEl.textContent = formatTime(currentTime);
+                durationEl.textContent = formatTime(duration);
+
+                updateActiveLyric(currentTime);
+            });
+
+            audioPlayer.addEventListener('play', function() {
+                updatePlayButton(true);
+            });
+            audioPlayer.addEventListener('pause', function() {
+                updatePlayButton(false);
+            });
+            // Set initial volume
+            audioPlayer.volume = volumeSlider.value;
         }
 
         function parseLyrics(syncedLyrics) {
@@ -789,6 +833,7 @@
         }
 
         playBtn.addEventListener('click', function() {
+            if (!audioPlayer) return;
             if (audioPlayer.paused) {
                 audioPlayer.play();
                 updatePlayButton(true);
@@ -808,17 +853,21 @@
             }
         }
 
-        audioPlayer.addEventListener('timeupdate', function() {
-            var currentTime = audioPlayer.currentTime;
-            var duration = audioPlayer.duration;
+        // progress bar seek
+        progressBar.addEventListener('click', function(e) {
+            if (!audioPlayer) return;
+            var rect = progressBar.getBoundingClientRect();
+            var clickPosition = e.clientX - rect.left;
+            var progressBarWidth = rect.width;
+            var newTime = (clickPosition / progressBarWidth) * audioPlayer.duration;
+            audioPlayer.currentTime = newTime;
+        });
 
-            var progress = (currentTime / duration) * 100 || 0;
-            progressFill.style.width = progress + '%';
-
-            currentTimeEl.textContent = formatTime(currentTime);
-            durationEl.textContent = formatTime(duration);
-
-            updateActiveLyric(currentTime);
+        // volume slider
+        volumeSlider.addEventListener('input', function(e) {
+            if (audioPlayer) {
+                audioPlayer.volume = e.target.value;
+            }
         });
 
         function updateActiveLyric(currentTime) {
@@ -855,18 +904,6 @@
             }
         }
 
-        progressBar.addEventListener('click', function(e) {
-            var rect = progressBar.getBoundingClientRect();
-            var clickPosition = e.clientX - rect.left;
-            var progressBarWidth = rect.width;
-            var newTime = (clickPosition / progressBarWidth) * audioPlayer.duration;
-            audioPlayer.currentTime = newTime;
-        });
-
-        volumeSlider.addEventListener('input', function(e) {
-            audioPlayer.volume = e.target.value;
-        });
-
         function formatTime(time) {
             if (isNaN(time)) return '0:00';
             var minutes = Math.floor(time / 60);
@@ -877,4 +914,6 @@
     <script src="https://cdn.dashjs.org/latest/dash.all.min.js"></script>
 </body>
 </html>
+
+
 
