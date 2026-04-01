@@ -726,14 +726,16 @@
                     lyrics = parseLyrics(lyricsData.syncedLyrics);
                     displayLyrics();
 
-                    // Check if the URL is a DASH MPD
+                    // Handle DASH MPD directly with dash.js
                     if (musicData.mp3 && musicData.mp3.endsWith('.mpd')) {
                         if (window.dashPlayer) {
                             window.dashPlayer.reset();
+                            window.dashPlayer = null;
                         }
                         window.dashPlayer = dashjs.MediaPlayer().create();
                         window.dashPlayer.initialize(audioPlayer, musicData.mp3, true);
                     } else {
+                        // Normal MP3/MP4 playback
                         if (window.dashPlayer) {
                             window.dashPlayer.reset();
                             window.dashPlayer = null;
