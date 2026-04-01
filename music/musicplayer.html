@@ -729,7 +729,7 @@
                     // Remove old audio/video player if exists
                     var container = document.getElementById('audioPlayerContainer');
                     container.innerHTML = ''; // clear previous player
-                    var isDash = musicData.mp3 && musicData.mp3.endsWith('.mpd');
+                    var isDash = true; // assume DASH always for now
 
                     if (isDash) {
                         var videoEl = document.createElement('video');
