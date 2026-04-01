@@ -739,9 +739,13 @@
                         videoEl.style.width = '100%';
                         container.appendChild(videoEl);
 
-                        if (window.dashPlayer) {
+                        if (window.dashPlayer && typeof window.dashPlayer.reset === 'function') {
                             window.dashPlayer.reset();
-                            window.dashPlayer = null;
+                        }
+                        window.dashPlayer = null;
+                        if (!window.dashjs) {
+                            console.error('dash.js not loaded');
+                            return;
                         }
                         window.dashPlayer = dashjs.MediaPlayer().create();
                         window.dashPlayer.initialize(videoEl, musicData.mp3, true);
@@ -756,6 +760,10 @@
                         container.appendChild(audioEl);
                         audioEl.play();
                         audioPlayer = audioEl;
+                        if (window.dashPlayer && typeof window.dashPlayer.reset === 'function') {
+                            window.dashPlayer.reset();
+                        }
+                        window.dashPlayer = null;
                     }
 
                     // Attach event listeners to the new audioPlayer
@@ -914,6 +922,8 @@
     <script src="https://cdn.dashjs.org/latest/dash.all.min.js"></script>
 </body>
 </html>
+
+
 
 
 
