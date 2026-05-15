@@ -59,7 +59,7 @@ function renderGmes() {
     return `
       <div class="gme-card" onclick="playGme('${g.url}', '${g.name}')">
         <div class="gme-image">
-          <img src="${g.cover}" alt="${g.name}" class="gme-cover">
+          <i data-lucide="gamepad-2" class="gme-icon"></i>
         </div>
         <div class="gme-info">
           <h3 class="gme-title">${g.name}</h3>
@@ -178,3 +178,5 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 });
+
+
