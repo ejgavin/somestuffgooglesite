@@ -17,7 +17,7 @@ const favoriteToggleBtn = document.getElementById('favoriteToggleBtn');
 // === LOAD GAMES ===
 async function loadGmes() {
   try {
-    const res = await fetch(`./list.json?t=${Date.now()}`);
+    const res = await fetch(`/js/list.json?t=${Date.now()}`);
     const json = res.ok ? await res.json() : [];
 
     gmesData = json.map(g => ({
