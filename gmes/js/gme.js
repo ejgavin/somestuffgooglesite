@@ -17,18 +17,21 @@ const favoriteToggleBtn = document.getElementById('favoriteToggleBtn');
 // === LOAD GAMES ===
 async function loadGmes() {
   try {
-    const res = await fetch(`https://cdn.jsdelivr.net/gh/gn-math/assets@2b921e85fe7ae61ba5d69c576bbe444e15c5d70d/zones.json?t=${Date.now()}`);
+    const res = await fetch(`./list.json?t=${Date.now()}`);
     const json = res.ok ? await res.json() : [];
-    gmesData = json
-      .filter(g => g.id !== -1) // Filter out the suggestion entry
-      .map(g => ({
-        url: `https://cdn.jsdelivr.net/gh/gn-math/html@main${g.url.replace('{HTML_URL}', '')}?t=${Date.now()}`,
-        name: g.name.replace(/game/gi, 'gme'),
-        cover: g.cover.replace('{COVER_URL}', 'https://cdn.jsdelivr.net/gh/gn-math/covers@main')
-      }));
-  } catch {
+
+    gmesData = json.map(g => ({
+      url: g.url,
+      name: g.name,
+      cover: g.cover,
+      featured: g.featured || false,
+      port: g.port || false
+    }));
+  } catch (error) {
+    console.error('Failed to load games:', error);
     gmesData = [];
   }
+
   filteredGmes = [...gmesData];
   renderGmes();
 }
@@ -56,7 +59,7 @@ function renderGmes() {
     return `
       <div class="gme-card" onclick="playGme('${g.url}', '${g.name}')">
         <div class="gme-image">
-          <i data-lucide="gamepad-2" class="gme-icon"></i>
+          <img src="${g.cover}" alt="${g.name}" class="gme-cover">
         </div>
         <div class="gme-info">
           <h3 class="gme-title">${g.name}</h3>
