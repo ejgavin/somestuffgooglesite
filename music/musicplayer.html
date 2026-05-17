@@ -729,41 +729,47 @@
                     // Remove old audio/video player if exists
                     var container = document.getElementById('audioPlayerContainer');
                     container.innerHTML = ''; // clear previous player
-                    var isDash = true; // assume DASH always for now
+                    var streamUrl = musicData.mp3 || '';
+                    var isDash = streamUrl.includes('.mpd');
+
+                    if (window.dashPlayer && typeof window.dashPlayer.reset === 'function') {
+                        window.dashPlayer.reset();
+                    }
+                    window.dashPlayer = null;
 
                     if (isDash) {
                         var videoEl = document.createElement('video');
                         videoEl.id = 'dashPlayer';
-                        videoEl.controls = true;
                         videoEl.autoplay = true;
-                        videoEl.style.width = '100%';
+                        videoEl.playsInline = true;
+                        videoEl.style.display = 'none';
+
                         container.appendChild(videoEl);
 
-                        if (window.dashPlayer && typeof window.dashPlayer.reset === 'function') {
-                            window.dashPlayer.reset();
-                        }
-                        window.dashPlayer = null;
                         if (!window.dashjs) {
                             console.error('dash.js not loaded');
                             return;
                         }
+
                         window.dashPlayer = dashjs.MediaPlayer().create();
-                        window.dashPlayer.initialize(videoEl, musicData.mp3, true);
+                        window.dashPlayer.initialize(videoEl, streamUrl, true);
+
                         audioPlayer = videoEl;
                     } else {
-                        // normal audio playback
+                        // normal audio playback for direct mp3/flac urls
                         var audioEl = document.createElement('audio');
                         audioEl.id = 'audioPlayer';
-                        audioEl.controls = true;
                         audioEl.autoplay = true;
-                        audioEl.src = musicData.mp3;
+                        audioEl.preload = 'auto';
+                        audioEl.src = streamUrl;
+
                         container.appendChild(audioEl);
-                        audioEl.play();
+
+                        audioEl.play().catch(function(err) {
+                            console.error('audio play failed', err);
+                        });
+
                         audioPlayer = audioEl;
-                        if (window.dashPlayer && typeof window.dashPlayer.reset === 'function') {
-                            window.dashPlayer.reset();
-                        }
-                        window.dashPlayer = null;
                     }
 
                     // Attach event listeners to the new audioPlayer
@@ -922,6 +928,8 @@
     <script src="https://cdn.dashjs.org/latest/dash.all.min.js"></script>
 </body>
 </html>
+
+
 
 
 
